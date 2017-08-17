@@ -49,17 +49,21 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 		valArr := strings.Split(val, "=")
 		if valArr[0] == "type" && !stateType {
 			*extractCodeError = append(*extractCodeError, valArr[1])
-		} else if valArr[0] == "required" && stateType {
-			if len(valArr) == 2 {
-				requiredValidate(realType, realVal, extractCodeError, valArr[1])
-			}
-		} else if valArr[0] == "stringnumericonly" && stateType {
-			if len(valArr) == 2 {
-				stringnumericonlyValidate(realType, realVal, extractCodeError, valArr[1])
-			}
-		} else if (valArr[0] == "gte" || valArr[0] == "lte") && stateType {
-			if len(valArr) == 3 {
-				gtelteValidate(realType, realVal, extractCodeError, valArr)
+		} else if stateType {
+			if valArr[0] == "required" {
+				if len(valArr) == 2 {
+					requiredValidate(realType, realVal, extractCodeError, valArr[1])
+				}
+			} else if valArr[0] == "stringnumericonly" {
+				if len(valArr) == 2 {
+					stringnumericonlyValidate(realType, realVal, extractCodeError, valArr[1])
+				}
+			} else if valArr[0] == "gte" || valArr[0] == "lte" {
+				if len(valArr) == 3 {
+					gtelteValidate(realType, realVal, extractCodeError, valArr)
+				}
+			} else if valArr[0] == "len" {
+
 			}
 		}
 	}
@@ -141,6 +145,11 @@ func gtelteValidate(realType string, realVal interface{}, extractCodeError *[]st
 			*extractCodeError = append(*extractCodeError, valArr[2])
 		}
 	}
+}
+
+func lenValidate(realType string, realVal interface{}, extractCodeError *[]string,
+	code string) {
+
 }
 
 ///////////////////////
