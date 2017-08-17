@@ -38,16 +38,16 @@ var (
 	emailRegexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
-// ValidateFormat ...
-func ValidateFormat(email string) error {
+// ValidateFormatMail ...
+func ValidateFormatMail(email string) error {
 	if !emailRegexp.MatchString(email) {
 		return errBadFormat
 	}
 	return nil
 }
 
-// ValidateHost ...
-func ValidateHost(email string) error {
+// ValidateHostMail ...
+func ValidateHostMail(email string) error {
 	_, host := split(email)
 	mx, err := net.LookupMX(host)
 	if err != nil {

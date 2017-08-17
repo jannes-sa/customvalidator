@@ -1,7 +1,7 @@
 /*
 Version : 1.0
 Author  : Jannes Santoso
-Noted   : Use it Only for handle request external data
+Noted   : Use it only for validation request external data
 */
 
 package customvalidator
@@ -11,15 +11,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/astaxie/beego"
+	"log"
 )
 
 // Validate Custom Validating
-func Validate(st interface{}) {
+func Validate(st interface{}, overflowStruct interface{}) {
+	var codeError []string
+
 	v := reflect.ValueOf(st)
 	vt := v.Type()
-
-	var codeError []string
+	ve := reflect.ValueOf(overflowStruct).Elem()
 
 	for i, n := 0, v.NumField(); i < n; i++ {
 		f := v.Field(i)
@@ -29,15 +30,42 @@ func Validate(st interface{}) {
 		var realType string
 		stateType := true
 		getTypeAndVal(f, ft, &stateType, &realVal, &realType)
-		// beego.Debug(stateType)
-		// beego.Debug(realVal)
-		// beego.Debug(reflect.TypeOf(realVal))
-
 		runningValidate(f, ft, stateType, realVal, realType, &codeError)
 
+		if len(codeError) == 0 {
+			if realType == "string" {
+				ve.Field(i).SetString(realVal.(string))
+			} else if realType == "int" {
+				ve.Field(i).SetInt(int64(realVal.(int)))
+			} else if realType == "float64" {
+				ve.Field(i).SetFloat(realVal.(float64))
+			}
+		}
 	}
 
-	beego.Debug(codeError)
+	// vTes := reflect.ValueOf(overFlowStruct).Elem()
+	// fTes := vTes.FieldByName("TxnVal")
+	// if fTes.IsValid() {
+	// 	if fTes.CanSet() {
+	// 		if fTes.Kind() == reflect.String {
+	// 			fTes.SetString("BLONBLON")
+	// 		} else {
+	// 			log.Println("C")
+	// 		}
+	// 	} else {
+	// 		log.Println("B")
+	// 	}
+	// } else {
+	// 	log.Println("A")
+	// }
+	// for i, n := 0, vTes.NumField(); i < n; i++ {
+	// f := vTes.FieldByName(vTes)
+	// }
+
+	// log.Println(overFlowStruct)
+	// log.Println(reflect.TypeOf(overFlowStruct))
+
+	log.Println(codeError)
 }
 
 func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, realVal interface{},
@@ -58,12 +86,14 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 				if len(valArr) == 2 {
 					stringnumericonlyValidate(realType, realVal, extractCodeError, valArr[1])
 				}
-			} else if valArr[0] == "gte" || valArr[0] == "lte" {
+			} else if valArr[0] == "gte" || valArr[0] == "lte" || valArr[0] == "len" {
 				if len(valArr) == 3 {
-					gtelteValidate(realType, realVal, extractCodeError, valArr)
+					gteLteLenValidate(realType, realVal, extractCodeError, valArr)
 				}
-			} else if valArr[0] == "len" {
-
+			} else if valArr[0] == "email" {
+				if len(valArr) == 2 {
+					emailValidate(realType, realVal, extractCodeError, valArr[1])
+				}
 			}
 		}
 	}
@@ -97,7 +127,7 @@ func stringnumericonlyValidate(realType string, realVal interface{}, extractCode
 	}
 }
 
-func gtelteValidate(realType string, realVal interface{}, extractCodeError *[]string,
+func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[]string,
 	valArr []string) {
 	intNil, errAtoi := strconv.Atoi(valArr[1])
 	CheckErr("Failed Convert custom validate line 69", errAtoi)
@@ -106,11 +136,15 @@ func gtelteValidate(realType string, realVal interface{}, extractCodeError *[]st
 		stCheck := false
 		if valArr[0] == "gte" {
 			if len(realVal.(string)) >= intNil {
-				stCheck = true
+				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
 			if len(realVal.(string)) <= intNil {
-				stCheck = true
+				stCheckAsgn(&stCheck)
+			}
+		} else if valArr[0] == "len" {
+			if len(realVal.(string)) == intNil {
+				stCheckAsgn(&stCheck)
 			}
 		}
 		if !stCheck {
@@ -120,11 +154,15 @@ func gtelteValidate(realType string, realVal interface{}, extractCodeError *[]st
 		stCheck := false
 		if valArr[0] == "gte" {
 			if realVal.(int) >= intNil {
-				stCheck = true
+				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
 			if realVal.(int) <= intNil {
-				stCheck = true
+				stCheckAsgn(&stCheck)
+			}
+		} else if valArr[0] == "len" {
+			if realVal.(int) == intNil {
+				stCheckAsgn(&stCheck)
 			}
 		}
 		if !stCheck {
@@ -134,11 +172,15 @@ func gtelteValidate(realType string, realVal interface{}, extractCodeError *[]st
 		stCheck := false
 		if valArr[0] == "gte" {
 			if realVal.(float64) >= float64(intNil) {
-				stCheck = true
+				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
 			if realVal.(float64) <= float64(intNil) {
-				stCheck = true
+				stCheckAsgn(&stCheck)
+			}
+		} else if valArr[0] == "len" {
+			if realVal.(float64) == float64(intNil) {
+				stCheckAsgn(&stCheck)
 			}
 		}
 		if !stCheck {
@@ -146,10 +188,18 @@ func gtelteValidate(realType string, realVal interface{}, extractCodeError *[]st
 		}
 	}
 }
+func stCheckAsgn(check *bool) {
+	*check = true
+}
 
-func lenValidate(realType string, realVal interface{}, extractCodeError *[]string,
+func emailValidate(realType string, realVal interface{}, extractCodeError *[]string,
 	code string) {
-
+	if realType == "string" && realVal.(string) != "" {
+		errMail := ValidateFormatMail(realVal.(string))
+		if errMail != nil {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	}
 }
 
 ///////////////////////
@@ -202,7 +252,7 @@ func contains(slice []string, item string) bool {
 // CheckErr ...
 func CheckErr(msg string, err error) {
 	if err != nil {
-		beego.Warning(msg)
-		beego.Warning(err)
+		log.Println(msg)
+		panic(err)
 	}
 }
