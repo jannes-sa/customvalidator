@@ -15,7 +15,7 @@ import (
 )
 
 // Validate Custom Validating
-func Validate(st interface{}, overflowStruct interface{}) {
+func Validate(st interface{}, overflowStruct interface{}) []string {
 	var codeError []string
 
 	v := reflect.ValueOf(st)
@@ -43,29 +43,7 @@ func Validate(st interface{}, overflowStruct interface{}) {
 		}
 	}
 
-	// vTes := reflect.ValueOf(overFlowStruct).Elem()
-	// fTes := vTes.FieldByName("TxnVal")
-	// if fTes.IsValid() {
-	// 	if fTes.CanSet() {
-	// 		if fTes.Kind() == reflect.String {
-	// 			fTes.SetString("BLONBLON")
-	// 		} else {
-	// 			log.Println("C")
-	// 		}
-	// 	} else {
-	// 		log.Println("B")
-	// 	}
-	// } else {
-	// 	log.Println("A")
-	// }
-	// for i, n := 0, vTes.NumField(); i < n; i++ {
-	// f := vTes.FieldByName(vTes)
-	// }
-
-	// log.Println(overFlowStruct)
-	// log.Println(reflect.TypeOf(overFlowStruct))
-
-	log.Println(codeError)
+	return codeError
 }
 
 func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, realVal interface{},
