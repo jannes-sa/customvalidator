@@ -14,6 +14,16 @@ import (
 	"log"
 )
 
+// TypeStructAfterScan ...
+type TypeStructAfterScan struct {
+	Type        string
+	NameField   string
+	AssignField string
+	Code        string
+	Value       interface{}
+	Validate    string
+}
+
 // Validate Custom Validating
 func Validate(st interface{}, overflowStruct interface{}) []string {
 	var codeError []string
@@ -21,6 +31,8 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 	v := reflect.ValueOf(st)
 	vt := v.Type()
 	ve := reflect.ValueOf(overflowStruct).Elem()
+
+	var scanDataRequest []TypeStructAfterScan
 
 	for i, n := 0, v.NumField(); i < n; i++ {
 		f := v.Field(i)
@@ -30,7 +42,7 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 		var realType string
 		stateType := true
 		getTypeAndVal(f, ft, &stateType, &realVal, &realType)
-		runningValidate(f, ft, stateType, realVal, realType, &codeError)
+		runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest, &codeError)
 
 		if len(codeError) == 0 {
 			if realType == "string" {
@@ -43,11 +55,17 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 		}
 	}
 
+	// Validate After Scan //
+	if len(codeError) == 0 {
+		validateAfterScan(scanDataRequest, &codeError)
+	}
+	// Validate After Scan //
+
 	return codeError
 }
 
 func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, realVal interface{},
-	realType string, extractCodeError *[]string) {
+	realType string, scanDataRequest *[]TypeStructAfterScan, extractCodeError *[]string) {
 	validateStr := ft.Tag.Get("validate")
 	validateArr := strings.Split(validateStr, ",")
 
@@ -72,6 +90,15 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 				if len(valArr) == 2 {
 					emailValidate(realType, realVal, extractCodeError, valArr[1])
 				}
+			} else if valArr[0] == "identicField" {
+				*scanDataRequest = append(*scanDataRequest, TypeStructAfterScan{
+					Type:        realType,
+					NameField:   ft.Name,
+					AssignField: valArr[1],
+					Code:        valArr[2],
+					Value:       realVal,
+					Validate:    valArr[0],
+				})
 			}
 		}
 	}
@@ -181,6 +208,42 @@ func emailValidate(realType string, realVal interface{}, extractCodeError *[]str
 }
 
 ///////////////////////
+
+// Validate After Scan //
+func validateAfterScan(scanDataRequest []TypeStructAfterScan, extractCodeError *[]string) {
+	for _, val := range scanDataRequest {
+		if val.Validate == "identicField" {
+			st := validateIdentical(scanDataRequest, val)
+			if st == false {
+				*extractCodeError = append(*extractCodeError, val.Code)
+			}
+		}
+	}
+}
+
+func validateIdentical(scanDataRequest []TypeStructAfterScan, valAfterScan TypeStructAfterScan) bool {
+	state := true
+	for _, val := range scanDataRequest {
+		if val.NameField == valAfterScan.AssignField && val.Type == valAfterScan.Type {
+			if val.Type == "string" {
+				if val.Value.(string) == valAfterScan.Value.(string) {
+					state = false
+				}
+			} else if val.Type == "int" {
+				if val.Value.(int) == valAfterScan.Value.(int) {
+					state = false
+				}
+			} else if val.Type == "float64" {
+				if val.Value.(float64) == valAfterScan.Value.(float64) {
+					state = false
+				}
+			}
+		}
+	}
+	return state
+}
+
+////////////////////////
 
 func getTypeAndVal(f reflect.Value, ft reflect.StructField, stateType *bool, realVal *interface{},
 	realType *string) {
