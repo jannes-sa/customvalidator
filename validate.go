@@ -51,6 +51,8 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 				ve.Field(i).SetInt(int64(realVal.(int)))
 			} else if realType == "float64" {
 				ve.Field(i).SetFloat(realVal.(float64))
+			} else if realType == "time" {
+				ve.Field(i).SetString(realVal.(string))
 			}
 		}
 	}
@@ -90,6 +92,11 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 				if len(valArr) == 2 {
 					emailValidate(realType, realVal, extractCodeError, valArr[1])
 				}
+			} else if valArr[0] == "should" {
+				if len(valArr) == 4 {
+					shouldValidate(realType, realVal, extractCodeError, valArr[1], valArr[2],
+						valArr[3])
+				}
 			} else if valArr[0] == "identicField" {
 				*scanDataRequest = append(*scanDataRequest, TypeStructAfterScan{
 					Type:        realType,
@@ -116,7 +123,33 @@ func requiredValidate(realType string, realVal interface{}, extractCodeError *[]
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	} else if realType == "float64" {
-		if realVal.(float64) == 0 {
+		if realVal.(float64) == float64(0) {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	} else if realType == "time" {
+		if realVal.(string) == "" {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	}
+}
+
+func shouldValidate(realType string, realVal interface{}, extractCodeError *[]string,
+	fixVal interface{}, commaDelimiter string, code string) {
+
+	if realType == "string" {
+		if realVal.(string) != fixVal.(string) {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	} else if realType == "int" {
+		str := strconv.Itoa(realVal.(int))
+		if str != fixVal.(string) {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	} else if realType == "float64" {
+		comInt, _ := strconv.Atoi(commaDelimiter)
+		str := strconv.FormatFloat(realVal.(float64), 'f', comInt, 64)
+		log.Println(str)
+		if str != fixVal.(string) {
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	}
@@ -250,11 +283,11 @@ func getTypeAndVal(f reflect.Value, ft reflect.StructField, stateType *bool, rea
 	strType := ft.Tag.Get("type")
 	arrType := strings.Split(strType, ",")
 
-	checkType(f.Interface(), stateType, arrType, realVal, realType)
+	checkType(f.Interface(), stateType, arrType, realVal, realType, strType)
 }
 
 func checkType(mpt interface{}, state *bool, status []string, val *interface{},
-	typeVal *string) {
+	typeVal *string, strType string) {
 	*state = false
 	switch v := mpt.(type) {
 	case int:
@@ -270,11 +303,18 @@ func checkType(mpt interface{}, state *bool, status []string, val *interface{},
 		*val = v
 		*typeVal = "float64"
 	case string:
-		if contains(status, "string") {
-			*state = true
+		if strType == "string" {
+			if contains(status, "string") {
+				*state = true
+			}
+			*typeVal = "string"
+		} else if strType == "time" {
+			if contains(status, "time") {
+				*state = true
+			}
+			*typeVal = "time"
 		}
 		*val = v
-		*typeVal = "string"
 	default:
 		*state = false
 	}
