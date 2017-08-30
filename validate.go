@@ -62,6 +62,8 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 				}
 				ve.Field(i).Set(reflect.ValueOf(t))
 			}
+		} else {
+			log.Println(ft.Name)
 		}
 	}
 
