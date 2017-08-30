@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"log"
 )
@@ -42,17 +43,24 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 		var realType string
 		stateType := true
 		getTypeAndVal(f, ft, &stateType, &realVal, &realType)
-		runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest, &codeError)
-
+		if ft.Tag.Get("validate") != "" {
+			runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest, &codeError)
+		}
 		if len(codeError) == 0 {
 			if realType == "string" {
 				ve.Field(i).SetString(realVal.(string))
 			} else if realType == "int" {
-				ve.Field(i).SetInt(int64(realVal.(int)))
+				ve.Field(i).SetInt(int64(realVal.(float64)))
 			} else if realType == "float64" {
 				ve.Field(i).SetFloat(realVal.(float64))
 			} else if realType == "time" {
-				ve.Field(i).SetString(realVal.(string))
+				t, err := time.Parse(time.RFC3339, realVal.(string))
+				if err != nil {
+					log.Println("Failed Validate Time")
+					log.Println(ft.Name)
+					log.Println(realVal.(string))
+				}
+				ve.Field(i).Set(reflect.ValueOf(t))
 			}
 		}
 	}
@@ -119,7 +127,7 @@ func requiredValidate(realType string, realVal interface{}, extractCodeError *[]
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	} else if realType == "int" {
-		if realVal.(int) == 0 {
+		if realVal.(float64) == 0 {
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	} else if realType == "float64" {
@@ -141,14 +149,13 @@ func shouldValidate(realType string, realVal interface{}, extractCodeError *[]st
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	} else if realType == "int" {
-		str := strconv.Itoa(realVal.(int))
+		str := strconv.FormatFloat(realVal.(float64), 'f', 0, 64)
 		if str != fixVal.(string) {
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	} else if realType == "float64" {
 		comInt, _ := strconv.Atoi(commaDelimiter)
 		str := strconv.FormatFloat(realVal.(float64), 'f', comInt, 64)
-		log.Println(str)
 		if str != fixVal.(string) {
 			*extractCodeError = append(*extractCodeError, code)
 		}
@@ -191,15 +198,15 @@ func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[
 	} else if realType == "int" {
 		stCheck := false
 		if valArr[0] == "gte" {
-			if realVal.(int) >= intNil {
+			if realVal.(float64) >= float64(intNil) {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
-			if realVal.(int) <= intNil {
+			if realVal.(float64) <= float64(intNil) {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "len" {
-			if realVal.(int) == intNil {
+			if realVal.(float64) == float64(intNil) {
 				stCheckAsgn(&stCheck)
 			}
 		}
@@ -263,7 +270,7 @@ func validateIdentical(scanDataRequest []TypeStructAfterScan, valAfterScan TypeS
 					state = false
 				}
 			} else if val.Type == "int" {
-				if val.Value.(int) == valAfterScan.Value.(int) {
+				if val.Value.(float64) == valAfterScan.Value.(float64) {
 					state = false
 				}
 			} else if val.Type == "float64" {
@@ -284,6 +291,11 @@ func getTypeAndVal(f reflect.Value, ft reflect.StructField, stateType *bool, rea
 	arrType := strings.Split(strType, ",")
 
 	checkType(f.Interface(), stateType, arrType, realVal, realType, strType)
+	if !(*stateType) && ft.Tag.Get("validate") != "" {
+		log.Println("FAILED VALIDATE")
+		log.Println(ft.Name)
+		log.Println(f.Interface())
+	}
 }
 
 func checkType(mpt interface{}, state *bool, status []string, val *interface{},
@@ -297,11 +309,19 @@ func checkType(mpt interface{}, state *bool, status []string, val *interface{},
 		*val = v
 		*typeVal = "int"
 	case float64:
-		if contains(status, "float64") {
-			*state = true
+		if strType == "float64" {
+			if contains(status, "float64") {
+				*state = true
+			}
+			*val = v
+			*typeVal = "float64"
+		} else if strType == "int" {
+			if contains(status, "int") {
+				*state = true
+			}
+			*val = v
+			*typeVal = "int"
 		}
-		*val = v
-		*typeVal = "float64"
 	case string:
 		if strType == "string" {
 			if contains(status, "string") {
