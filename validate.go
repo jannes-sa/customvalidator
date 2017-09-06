@@ -176,21 +176,21 @@ func stringnumericonlyValidate(realType string, realVal interface{}, extractCode
 
 func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[]string,
 	valArr []string) {
-	intNil, errAtoi := strconv.Atoi(valArr[1])
+	intNil, errAtoi := strconv.ParseFloat(valArr[1], 64)
 	CheckErr("Failed Convert custom validate line 69", errAtoi)
 
 	if realType == "string" {
 		stCheck := false
 		if valArr[0] == "gte" {
-			if len(realVal.(string)) >= intNil {
+			if float64(len(realVal.(string))) >= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
-			if len(realVal.(string)) <= intNil {
+			if float64(len(realVal.(string))) <= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "len" {
-			if len(realVal.(string)) == intNil {
+			if float64(len(realVal.(string))) == intNil {
 				stCheckAsgn(&stCheck)
 			}
 		}
@@ -200,15 +200,15 @@ func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[
 	} else if realType == "int" {
 		stCheck := false
 		if valArr[0] == "gte" {
-			if realVal.(float64) >= float64(intNil) {
+			if realVal.(float64) >= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
-			if realVal.(float64) <= float64(intNil) {
+			if realVal.(float64) <= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "len" {
-			if realVal.(float64) == float64(intNil) {
+			if realVal.(float64) == intNil {
 				stCheckAsgn(&stCheck)
 			}
 		}
@@ -218,15 +218,15 @@ func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[
 	} else if realType == "float64" {
 		stCheck := false
 		if valArr[0] == "gte" {
-			if realVal.(float64) >= float64(intNil) {
+			if realVal.(float64) >= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
-			if realVal.(float64) <= float64(intNil) {
+			if realVal.(float64) <= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "len" {
-			if realVal.(float64) == float64(intNil) {
+			if realVal.(float64) == intNil {
 				stCheckAsgn(&stCheck)
 			}
 		}
