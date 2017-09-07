@@ -167,8 +167,10 @@ func shouldValidate(realType string, realVal interface{}, extractCodeError *[]st
 func stringnumericonlyValidate(realType string, realVal interface{}, extractCodeError *[]string,
 	code string) {
 	if realType == "string" && realVal.(string) != "" {
-		_, errConv := strconv.ParseUint(realVal.(string), 10, 64)
+		// _, errConv := strconv.ParseUint(realVal.(string), 10, 64)
+		_, errConv := strconv.ParseFloat(realVal.(string), 64)
 		if errConv != nil {
+			log.Println(errConv)
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	}
