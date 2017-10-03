@@ -7,10 +7,13 @@ Noted   : Use it only for validation request external data
 package customvalidator
 
 import (
+	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/astaxie/beego"
 
 	"log"
 )
@@ -43,13 +46,33 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 		var realType string
 		stateType := true
 		getTypeAndVal(f, ft, &stateType, &realVal, &realType)
-		if ft.Tag.Get("validate") != "" {
-			runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest, &codeError)
+
+		// running validate //
+		if ft.Tag.Get("validate") != "" && len(codeError) == 0 {
+			runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
+				&codeError)
 		}
+		// running validate //
+
+		// Parse Value //
+		if ft.Tag.Get("convert") != "" && len(codeError) == 0 {
+			parseConvertValue(f, ft, realType, &realVal, &codeError)
+		}
+		// Parse Value //
+
+		// Validate After Scan //
+		if ft.Tag.Get("validate") != "" && len(codeError) == 0 {
+			scanAfterValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
+				&codeError)
+			validateAfterScan(scanDataRequest, &codeError)
+		}
+		// Validate After Scan //
+
 		if len(codeError) == 0 {
+			// Set Value //
 			if realType == "string" {
 				ve.Field(i).SetString(realVal.(string))
-			} else if realType == "int" {
+			} else if realType == "int" || realType == "int64" {
 				ve.Field(i).SetInt(int64(realVal.(float64)))
 			} else if realType == "float64" {
 				ve.Field(i).SetFloat(realVal.(float64))
@@ -62,18 +85,49 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 				}
 				ve.Field(i).Set(reflect.ValueOf(t))
 			}
+			// Set Value //
 		} else {
 			log.Println(ft.Name)
 		}
 	}
 
 	// Validate After Scan //
-	if len(codeError) == 0 {
-		validateAfterScan(scanDataRequest, &codeError)
-	}
+	// if len(codeError) == 0 {
+	// 	validateAfterScan(scanDataRequest, &codeError)
+	// }
 	// Validate After Scan //
 
 	return codeError
+}
+
+func parseConvertValue(f reflect.Value, ft reflect.StructField, realType string,
+	realVal *interface{}, extractCodeError *[]string) {
+	convert := ft.Tag.Get("convert")
+	spr := strings.Split(convert, "=")
+	valReal := *realVal
+
+	if realType == "string" {
+		if spr[0] == "removezero" {
+			cnt, _ := new(big.Int), big.NewInt(1)
+			cnt.SetString(valReal.(string), 10)
+			*realVal = cnt.String()
+		} else if spr[0] == "fixlength" {
+			fixLen, err := strconv.Atoi(spr[1])
+			CheckErr("Failed line 104 validate js", err)
+
+			if fixLen > len(valReal.(string)) {
+				negLen := fixLen - len(valReal.(string))
+				zeros := strings.Repeat("0", negLen)
+				*realVal = zeros + valReal.(string)
+			} else {
+				*extractCodeError = append(*extractCodeError, spr[len(spr)-1])
+			}
+		} else {
+			*extractCodeError = append(*extractCodeError, spr[len(spr)-1])
+		}
+	} else {
+		*extractCodeError = append(*extractCodeError, spr[len(spr)-1])
+	}
 }
 
 func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, realVal interface{},
@@ -107,15 +161,6 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 					shouldValidate(realType, realVal, extractCodeError, valArr[1], valArr[2],
 						valArr[3])
 				}
-			} else if valArr[0] == "identicField" {
-				*scanDataRequest = append(*scanDataRequest, TypeStructAfterScan{
-					Type:        realType,
-					NameField:   ft.Name,
-					AssignField: valArr[1],
-					Code:        valArr[2],
-					Value:       realVal,
-					Validate:    valArr[0],
-				})
 			}
 		}
 	}
@@ -254,6 +299,27 @@ func emailValidate(realType string, realVal interface{}, extractCodeError *[]str
 ///////////////////////
 
 // Validate After Scan //
+func scanAfterValidate(f reflect.Value, ft reflect.StructField, stateType bool, realVal interface{},
+	realType string, scanDataRequest *[]TypeStructAfterScan,
+	extractCodeError *[]string) {
+	validateStr := ft.Tag.Get("validate")
+	validateArr := strings.Split(validateStr, ",")
+
+	for _, val := range validateArr {
+		valArr := strings.Split(val, "=")
+		if valArr[0] == "identicField" {
+			*scanDataRequest = append(*scanDataRequest, TypeStructAfterScan{
+				Type:        realType,
+				NameField:   ft.Name,
+				AssignField: valArr[1],
+				Code:        valArr[2],
+				Value:       realVal,
+				Validate:    valArr[0],
+			})
+		}
+	}
+}
+
 func validateAfterScan(scanDataRequest []TypeStructAfterScan, extractCodeError *[]string) {
 	for _, val := range scanDataRequest {
 		if val.Validate == "identicField" {
@@ -289,6 +355,13 @@ func validateIdentical(scanDataRequest []TypeStructAfterScan, valAfterScan TypeS
 
 ////////////////////////
 
+// Parse Value //
+func removeZero() {
+
+}
+
+/////////////////
+
 func getTypeAndVal(f reflect.Value, ft reflect.StructField, stateType *bool, realVal *interface{},
 	realType *string) {
 	strType := ft.Tag.Get("type")
@@ -296,9 +369,10 @@ func getTypeAndVal(f reflect.Value, ft reflect.StructField, stateType *bool, rea
 
 	checkType(f.Interface(), stateType, arrType, realVal, realType, strType)
 	if !(*stateType) && ft.Tag.Get("validate") != "" {
-		log.Println("FAILED VALIDATE")
+		log.Println("FAILED VALIDATE !!!!!")
 		log.Println(ft.Name)
 		log.Println(f.Interface())
+		log.Println("FAILED VALIDATE !!!!!")
 	}
 }
 
@@ -338,6 +412,9 @@ func checkType(mpt interface{}, state *bool, status []string, val *interface{},
 			}
 			*typeVal = "time"
 		}
+		*val = v
+	case *big.Int:
+		beego.Debug(v)
 		*val = v
 	default:
 		*state = false
