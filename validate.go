@@ -7,6 +7,7 @@ Noted   : Use it only for validation request external data
 package customvalidator
 
 import (
+	"encoding/json"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -161,6 +162,10 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 					shouldValidate(realType, realVal, extractCodeError, valArr[1], valArr[2],
 						valArr[3])
 				}
+			} else if valArr[0] == "commacheck" {
+				if len(valArr) == 3 {
+					commaCheck(realType, realVal, extractCodeError, valArr[1], valArr[2])
+				}
 			}
 		}
 	}
@@ -206,6 +211,23 @@ func shouldValidate(realType string, realVal interface{}, extractCodeError *[]st
 		if str != fixVal.(string) {
 			*extractCodeError = append(*extractCodeError, code)
 		}
+	}
+}
+
+func commaCheck(realType string, realVal interface{}, extractCodeError *[]string,
+	commaDelimiter string, code string) {
+
+	if realType == "float64" {
+		commaDelimiterInt, _ := strconv.Atoi(commaDelimiter)
+		nn, _ := json.Marshal(realVal.(float64))
+		sepVal := strings.Split(string(nn), ".")
+		beego.Debug(sepVal)
+
+		if len(sepVal[1]) > commaDelimiterInt {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	} else {
+		*extractCodeError = append(*extractCodeError, code)
 	}
 }
 
