@@ -221,10 +221,11 @@ func commaCheck(realType string, realVal interface{}, extractCodeError *[]string
 		commaDelimiterInt, _ := strconv.Atoi(commaDelimiter)
 		nn, _ := json.Marshal(realVal.(float64))
 		sepVal := strings.Split(string(nn), ".")
-		beego.Debug(sepVal)
 
-		if len(sepVal[1]) > commaDelimiterInt {
-			*extractCodeError = append(*extractCodeError, code)
+		if len(sepVal) == 2 {
+			if len(sepVal[1]) > commaDelimiterInt {
+				*extractCodeError = append(*extractCodeError, code)
+			}
 		}
 	} else {
 		*extractCodeError = append(*extractCodeError, code)
