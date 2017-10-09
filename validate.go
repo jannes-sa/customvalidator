@@ -48,6 +48,10 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 		stateType := true
 		getTypeAndVal(f, ft, &stateType, &realVal, &realType)
 
+		// validate missing field //
+		validateFieldMissing(f, ft, &codeError)
+		// validate missing field //
+
 		// running validate //
 		if ft.Tag.Get("validate") != "" && len(codeError) == 0 {
 			runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
@@ -169,9 +173,17 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 			}
 		}
 	}
+
 }
 
 // Create Validation Here //
+func validateFieldMissing(f reflect.Value, ft reflect.StructField,
+	extractCodeError *[]string) {
+	if f.Interface() == nil {
+		*extractCodeError = append(*extractCodeError, "missing_field|"+ft.Tag.Get("json"))
+	}
+}
+
 func requiredValidate(realType string, realVal interface{}, extractCodeError *[]string,
 	code string) {
 	if realType == "string" {
