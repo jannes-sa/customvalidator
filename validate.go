@@ -52,6 +52,12 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 		validateFieldMissing(f, ft, &codeError)
 		// validate missing field //
 
+		// validate type must match //
+		if len(codeError) == 0 {
+			validateType(ft, stateType, &codeError)
+		}
+		// validate type must match //
+
 		// running validate //
 		if ft.Tag.Get("validate") != "" && len(codeError) == 0 {
 			runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
@@ -95,12 +101,6 @@ func Validate(st interface{}, overflowStruct interface{}) []string {
 			log.Println(ft.Name)
 		}
 	}
-
-	// Validate After Scan //
-	// if len(codeError) == 0 {
-	// 	validateAfterScan(scanDataRequest, &codeError)
-	// }
-	// Validate After Scan //
 
 	return codeError
 }
@@ -181,6 +181,12 @@ func validateFieldMissing(f reflect.Value, ft reflect.StructField,
 	extractCodeError *[]string) {
 	if f.Interface() == nil {
 		*extractCodeError = append(*extractCodeError, "missing_field|"+ft.Tag.Get("json"))
+	}
+}
+
+func validateType(ft reflect.StructField, stateType bool, extractCodeError *[]string) {
+	if !stateType {
+		*extractCodeError = append(*extractCodeError, "mismatch_type|"+ft.Tag.Get("type")+"|"+ft.Tag.Get("json"))
 	}
 }
 
