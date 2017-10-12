@@ -170,6 +170,10 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 				if len(valArr) == 3 {
 					commaCheck(realType, realVal, extractCodeError, valArr[1], valArr[2])
 				}
+			} else if valArr[0] == "enum" {
+				if len(valArr) == 3 {
+					enumValidate(realType, realVal, valArr[1], valArr[2], extractCodeError)
+				}
 			}
 		}
 	}
@@ -187,6 +191,23 @@ func validateFieldMissing(f reflect.Value, ft reflect.StructField,
 func validateType(ft reflect.StructField, stateType bool, extractCodeError *[]string) {
 	if !stateType {
 		*extractCodeError = append(*extractCodeError, "mismatch_type|"+ft.Tag.Get("type")+"|"+ft.Tag.Get("json"))
+	}
+}
+
+func enumValidate(realType string, realVal interface{},
+	enumVal string, code string, extractCodeError *[]string) {
+
+	arrEnumChar := strings.Split(enumVal, `|`)
+
+	if realType == "string" {
+		if !contains(arrEnumChar, realVal.(string)) {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	} else if realType == "int" || realType == "int64" || realType == "float64" {
+		valStr := strconv.FormatFloat(realVal.(float64), 'f', 0, 64)
+		if !contains(arrEnumChar, valStr) {
+			*extractCodeError = append(*extractCodeError, code)
+		}
 	}
 }
 
