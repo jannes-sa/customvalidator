@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/astaxie/beego"
 
@@ -120,8 +121,8 @@ func parseConvertValue(f reflect.Value, ft reflect.StructField, realType string,
 			fixLen, err := strconv.Atoi(spr[1])
 			CheckErr("Failed line 104 validate js", err)
 
-			if fixLen > len(valReal.(string)) {
-				negLen := fixLen - len(valReal.(string))
+			if fixLen > utf8.RuneCountInString(valReal.(string)) {
+				negLen := fixLen - utf8.RuneCountInString(valReal.(string))
 				zeros := strings.Repeat("0", negLen)
 				*realVal = zeros + valReal.(string)
 			} else {
@@ -291,15 +292,15 @@ func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[
 	if realType == "string" {
 		stCheck := false
 		if valArr[0] == "gte" {
-			if float64(len(realVal.(string))) >= intNil {
+			if float64(utf8.RuneCountInString(realVal.(string))) >= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
-			if float64(len(realVal.(string))) <= intNil {
+			if float64(utf8.RuneCountInString(realVal.(string))) <= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "len" {
-			if float64(len(realVal.(string))) == intNil {
+			if float64(utf8.RuneCountInString(realVal.(string))) == intNil {
 				stCheckAsgn(&stCheck)
 			}
 		}
