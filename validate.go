@@ -43,24 +43,26 @@ func Validate(
 	ValidateNested(st, overflowStruct, t, &codeError)
 
 	// start : handle slice struct //
-	v := reflect.ValueOf(st)
-	ve := reflect.ValueOf(overflowStruct).Elem()
-	for i, n := 0, v.NumField(); i < n; i++ {
-		if v.Field(i).Kind() == reflect.Slice {
-			s := v.Field(i)
+	if len(codeError) == 0 {
+		v := reflect.ValueOf(st)
+		ve := reflect.ValueOf(overflowStruct).Elem()
+		for i, n := 0, v.NumField(); i < n; i++ {
+			if v.Field(i).Kind() == reflect.Slice {
+				s := v.Field(i)
 
-			nse := reflect.MakeSlice(ve.Field(i).Type(), s.Len(), s.Len())
-			reflect.Copy(nse, ve.Field(i))
-			ve.Field(i).Set(nse)
+				nse := reflect.MakeSlice(ve.Field(i).Type(), s.Len(), s.Len())
+				reflect.Copy(nse, ve.Field(i))
+				ve.Field(i).Set(nse)
 
-			for x := 0; x < s.Len(); x++ {
-				vv := reflect.Indirect(s.Index(x))
-				vve := reflect.Indirect(ve.Field(i).Index(x))
+				for x := 0; x < s.Len(); x++ {
+					vv := reflect.Indirect(s.Index(x))
+					vve := reflect.Indirect(ve.Field(i).Index(x))
 
-				var tt interface{}
-				ValidateNested(vv.Interface(), tt, vve, &codeError)
+					var tt interface{}
+					ValidateNested(vv.Interface(), tt, vve, &codeError)
+				}
+
 			}
-
 		}
 	}
 	// end : handle slice struct //
