@@ -1,7 +1,9 @@
 /*
-Version : 1.0
+Version : 2.0
 Author  : Jannes Santoso
 Noted   : Use it only for validation request external data
+
+Adding Array Validation
 */
 
 package customvalidator
@@ -13,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/astaxie/beego"
 
@@ -30,79 +33,128 @@ type TypeStructAfterScan struct {
 }
 
 // Validate Custom Validating
-func Validate(st interface{}, overflowStruct interface{}) []string {
+func Validate(
+	st interface{},
+	overflowStruct interface{}) []string {
+
 	var codeError []string
+
+	var t reflect.Value
+	ValidateNested(st, overflowStruct, t, &codeError)
+
+	// start : handle slice struct //
+	v := reflect.ValueOf(st)
+	ve := reflect.ValueOf(overflowStruct).Elem()
+	for i, n := 0, v.NumField(); i < n; i++ {
+		if v.Field(i).Kind() == reflect.Slice {
+			s := v.Field(i)
+
+			nse := reflect.MakeSlice(ve.Field(i).Type(), s.Len(), s.Len())
+			reflect.Copy(nse, ve.Field(i))
+			ve.Field(i).Set(nse)
+
+			for x := 0; x < s.Len(); x++ {
+				vv := reflect.Indirect(s.Index(x))
+				vve := reflect.Indirect(ve.Field(i).Index(x))
+
+				var tt interface{}
+				ValidateNested(vv.Interface(), tt, vve, &codeError)
+			}
+
+		}
+	}
+	// end : handle slice struct //
+
+	return codeError
+}
+
+// ValidateNested Custom Validating
+func ValidateNested(
+	st interface{},
+	overflowStruct interface{},
+	overflowStructValue reflect.Value,
+	codeError *[]string) []string {
 
 	v := reflect.ValueOf(st)
 	vt := v.Type()
-	ve := reflect.ValueOf(overflowStruct).Elem()
+
+	var ve reflect.Value
+	if reflect.ValueOf(overflowStruct).Kind() == reflect.Ptr {
+		ve = reflect.ValueOf(overflowStruct).Elem()
+	} else {
+		ve = overflowStructValue
+	}
 
 	var scanDataRequest []TypeStructAfterScan
 
 	for i, n := 0, v.NumField(); i < n; i++ {
-		f := v.Field(i)
-		ft := vt.Field(i)
+		if v.Field(i).Kind() != reflect.Slice {
+			f := v.Field(i)
+			ft := vt.Field(i)
 
-		var realVal interface{}
-		var realType string
-		stateType := true
-		getTypeAndVal(f, ft, &stateType, &realVal, &realType)
+			var realVal interface{}
+			var realType string
+			stateType := true
+			getTypeAndVal(f, ft, &stateType, &realVal, &realType)
 
-		// validate missing field //
-		validateFieldMissing(f, ft, &codeError)
-		// validate missing field //
+			// validate missing field //
+			validateFieldMissing(f, ft, codeError)
+			// validate missing field //
 
-		// validate type must match //
-		if len(codeError) == 0 {
-			validateType(ft, stateType, &codeError)
-		}
-		// validate type must match //
-
-		// running validate //
-		if ft.Tag.Get("validate") != "" && len(codeError) == 0 {
-			runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
-				&codeError)
-		}
-		// running validate //
-
-		// Parse Value //
-		if ft.Tag.Get("convert") != "" && len(codeError) == 0 {
-			parseConvertValue(f, ft, realType, &realVal, &codeError)
-		}
-		// Parse Value //
-
-		// Validate After Scan //
-		if ft.Tag.Get("validate") != "" && len(codeError) == 0 {
-			scanAfterValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
-				&codeError)
-			validateAfterScan(scanDataRequest, &codeError)
-		}
-		// Validate After Scan //
-
-		if len(codeError) == 0 {
-			// Set Value //
-			if realType == "string" {
-				ve.Field(i).SetString(realVal.(string))
-			} else if realType == "int" || realType == "int64" {
-				ve.Field(i).SetInt(int64(realVal.(float64)))
-			} else if realType == "float64" {
-				ve.Field(i).SetFloat(realVal.(float64))
-			} else if realType == "time" {
-				t, err := time.Parse(time.RFC3339, realVal.(string))
-				if err != nil {
-					log.Println("Failed Validate Time")
-					log.Println(ft.Name)
-					log.Println(realVal.(string))
-				}
-				ve.Field(i).Set(reflect.ValueOf(t))
+			// validate type must match //
+			if len(*codeError) == 0 {
+				validateType(ft, stateType, codeError)
 			}
-			// Set Value //
-		} else {
-			log.Println(ft.Name)
+			// validate type must match //
+
+			// running validate //
+			if ft.Tag.Get("validate") != "" && len(*codeError) == 0 {
+				runningValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
+					codeError)
+			}
+			// running validate //
+
+			// Parse Value //
+			if ft.Tag.Get("convert") != "" && len(*codeError) == 0 {
+				parseConvertValue(f, ft, realType, &realVal, codeError)
+			}
+			// Parse Value //
+
+			// Validate After Scan //
+			if ft.Tag.Get("validate") != "" && len(*codeError) == 0 {
+				scanAfterValidate(f, ft, stateType, realVal, realType, &scanDataRequest,
+					codeError)
+				validateAfterScan(scanDataRequest, codeError)
+			}
+			// Validate After Scan //
+
+			if len(*codeError) == 0 {
+				// Set Value //
+				if realType == "string" {
+					ve.Field(i).SetString(realVal.(string))
+				} else if realType == "int" || realType == "int64" {
+					ve.Field(i).SetInt(int64(realVal.(float64)))
+				} else if realType == "float64" {
+					ve.Field(i).SetFloat(realVal.(float64))
+				} else if realType == "time" {
+					t, err := time.Parse(time.RFC3339, realVal.(string))
+					if err != nil {
+						log.Println("Failed Validate Time")
+						log.Println(ft.Name)
+						log.Println(realVal.(string))
+					}
+					ve.Field(i).Set(reflect.ValueOf(t))
+				}
+				// Set Value //
+
+			} else {
+				log.Println(ft.Name)
+			}
+
 		}
 	}
 
-	return codeError
+	return *codeError
 }
 
 func parseConvertValue(f reflect.Value, ft reflect.StructField, realType string,
@@ -120,8 +172,8 @@ func parseConvertValue(f reflect.Value, ft reflect.StructField, realType string,
 			fixLen, err := strconv.Atoi(spr[1])
 			CheckErr("Failed line 104 validate js", err)
 
-			if fixLen > len(valReal.(string)) {
-				negLen := fixLen - len(valReal.(string))
+			if fixLen > utf8.RuneCountInString(valReal.(string)) {
+				negLen := fixLen - utf8.RuneCountInString(valReal.(string))
 				zeros := strings.Repeat("0", negLen)
 				*realVal = zeros + valReal.(string)
 			} else {
@@ -291,15 +343,15 @@ func gteLteLenValidate(realType string, realVal interface{}, extractCodeError *[
 	if realType == "string" {
 		stCheck := false
 		if valArr[0] == "gte" {
-			if float64(len(realVal.(string))) >= intNil {
+			if float64(utf8.RuneCountInString(realVal.(string))) >= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "lte" {
-			if float64(len(realVal.(string))) <= intNil {
+			if float64(utf8.RuneCountInString(realVal.(string))) <= intNil {
 				stCheckAsgn(&stCheck)
 			}
 		} else if valArr[0] == "len" {
-			if float64(len(realVal.(string))) == intNil {
+			if float64(utf8.RuneCountInString(realVal.(string))) == intNil {
 				stCheckAsgn(&stCheck)
 			}
 		}
