@@ -50,6 +50,8 @@ func TestValidate(t *testing.T) {
 func TestValidateArray(t *testing.T) {
 	type ArrTesInterface struct {
 		AccountNumber interface{} `json:"account_number" type:"string" validate:"required=E02030009,stringnumericonly=E02030008,lte=20=E02030007,type=E02030001"`
+		Status        interface{} `json:"status" type:"int" validate:"required=E02030009,type=E02030001"`
+		Amount        interface{} `json:"amount" type:"float64" validate:"required=E02030009,type=E02030001"`
 	}
 
 	type TesInterface2 struct {
@@ -58,7 +60,9 @@ func TestValidateArray(t *testing.T) {
 	}
 
 	type ArrTes struct {
-		AccountNumber string `json:"account_number"`
+		AccountNumber string  `json:"account_number"`
+		Status        int     `json:"status"`
+		Amount        float64 `json:"amount"`
 	}
 
 	type Tes2 struct {
@@ -70,8 +74,21 @@ func TestValidateArray(t *testing.T) {
 		{
 			"transaction_amount":100000,
 			"data":[
-				{"account_number":"123456789123"},
-				{"account_number":"985654637462"}
+				{
+					"account_number":"123456789123",
+					"status":1,
+					"amount":2000
+				},
+				{
+					"account_number":"985654637462",
+					"status":2,
+					"amount":3000
+				},
+				{
+					"account_number":"101010637462",
+					"status":3,
+					"amount":1500	
+				}
 			]
 		}
 	`)

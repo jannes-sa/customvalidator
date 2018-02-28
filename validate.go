@@ -55,8 +55,8 @@ func Validate(
 				ve.Field(i).Set(nse)
 
 				for x := 0; x < s.Len(); x++ {
-					vv := reflect.Indirect(s.Index(x))
-					vve := reflect.Indirect(ve.Field(i).Index(x))
+					vv := s.Index(x)
+					vve := ve.Field(i).Index(x)
 
 					var tt interface{}
 					ValidateNested(vv.Interface(), tt, vve, &codeError)
