@@ -167,10 +167,14 @@ func parseConvertValue(f reflect.Value, ft reflect.StructField, realType string,
 
 	if realType == "string" {
 		if spr[0] == "removezero" {
+			// convert:"removezero={code_error}"
+			// to remove zero from string
 			cnt, _ := new(big.Int), big.NewInt(1)
 			cnt.SetString(valReal.(string), 10)
 			*realVal = cnt.String()
 		} else if spr[0] == "fixlength" {
+			// fixlen:"fixlen={value}={code_error}"
+			// using for thai fixedLength
 			fixLen, err := strconv.Atoi(spr[1])
 			CheckErr("Failed line 104 validate js", err)
 
@@ -209,6 +213,7 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 				}
 			} else if valArr[0] == "gte" || valArr[0] == "lte" || valArr[0] == "len" {
 				if len(valArr) == 3 {
+					// len={value}={code_error}
 					gteLteLenValidate(realType, realVal, extractCodeError, valArr)
 				}
 			} else if valArr[0] == "email" {
@@ -226,7 +231,13 @@ func runningValidate(f reflect.Value, ft reflect.StructField, stateType bool, re
 				}
 			} else if valArr[0] == "enum" {
 				if len(valArr) == 3 {
+					// enum={value|value|value}={code_error}
 					enumValidate(realType, realVal, valArr[1], valArr[2], extractCodeError)
+				}
+			} else if valArr[0] == "timevalid" {
+				if len(valArr) == 2 {
+					// timevalid={error_code}
+					timeValidValidate(realType, realVal, extractCodeError, valArr[1])
 				}
 			}
 		}
@@ -407,6 +418,19 @@ func emailValidate(realType string, realVal interface{}, extractCodeError *[]str
 	if realType == "string" && realVal.(string) != "" {
 		errMail := ValidateFormatMail(realVal.(string))
 		if errMail != nil {
+			*extractCodeError = append(*extractCodeError, code)
+		}
+	}
+}
+
+func timeValidValidate(realType string, realVal interface{}, extractCodeError *[]string,
+	code string) {
+
+	if realType == "string" && realVal.(string) != "" {
+		tm, err := time.Parse(time.RFC3339, realVal.(string)+"T00:00:00.000Z")
+		log.Println(tm)
+		if err != nil {
+			log.Println(err)
 			*extractCodeError = append(*extractCodeError, code)
 		}
 	}

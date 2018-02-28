@@ -117,3 +117,32 @@ func TestValidateArray(t *testing.T) {
 	log.Println(errCode, tes)
 
 }
+
+func TestTimeValid(t *testing.T) {
+	type TesInterface struct {
+		DateString interface{} `json:"date" type:"string" validate:"required=E02030009,timevalid=E02031109"`
+	}
+
+	type Tes struct {
+		DateString string
+	}
+
+	bodyJSON := []byte(`
+		{
+			"date":"1992-01-12"
+		}
+	`)
+
+	var tesInter TesInterface
+	err := json.Unmarshal(bodyJSON, &tesInter)
+	if err != nil {
+		t.Error("Error ", err)
+		return
+	}
+	log.Println(tesInter)
+
+	var tes Tes
+	codeError := Validate(tesInter, &tes)
+
+	log.Println(tes, codeError)
+}
